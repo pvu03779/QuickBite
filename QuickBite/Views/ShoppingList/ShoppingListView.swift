@@ -2,7 +2,7 @@ import SwiftUI
 
 struct ShoppingListView: View {
     @StateObject private var viewModel = ShoppingListViewModel()
-
+    
     var body: some View {
         NavigationView {
             Group {
@@ -15,9 +15,20 @@ struct ShoppingListView: View {
                 } else {
                     List {
                         ForEach(viewModel.shoppingListRecipes) { recipe in
-                            // Group by recipe
-                            Section(header: Text(recipe.recipeTitle ?? "Unknown Recipe").font(.title3)) {
-                                // Get sorted ingredients
+                            // --- REVISED: Section header now has a delete button ---
+                            Section(header:
+                                        HStack {
+                                Text(recipe.recipeTitle ?? "Unknown Recipe")
+                                    .font(.title3)
+                                Spacer()
+                                Button(action: {
+                                    viewModel.deleteRecipe(recipe)
+                                }) {
+                                    Image(systemName: "trash")
+                                        .foregroundColor(.red)
+                                }
+                            }
+                            ) {
                                 ForEach(viewModel.getIngredients(for: recipe)) { ingredient in
                                     ShoppingItemView(
                                         ingredient: ingredient,
@@ -34,7 +45,6 @@ struct ShoppingListView: View {
             }
             .navigationTitle("Shopping List")
             .onAppear {
-                // Refresh when the view appears
                 viewModel.fetchShoppingList()
             }
         }
@@ -42,9 +52,9 @@ struct ShoppingListView: View {
 }
 
 struct ShoppingItemView: View {
-    let ingredient: ShoppingListIngredient
+    @ObservedObject var ingredient: ShoppingListIngredient
     let onToggle: () -> Void
-
+    
     var body: some View {
         Button(action: onToggle) {
             HStack(spacing: 16) {

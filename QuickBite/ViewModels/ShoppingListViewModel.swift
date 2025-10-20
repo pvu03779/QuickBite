@@ -43,4 +43,11 @@ class ShoppingListViewModel: ObservableObject {
         // Sort alphabetically
         return set.sorted { $0.originalText ?? "" < $1.originalText ?? "" }
     }
+    
+    /// Calls persistence to delete a recipe from the shopping list
+    func deleteRecipe(_ recipe: ShoppingListRecipe) {
+        persistence.removeRecipeFromShoppingList(recipe)
+        // The notification listener in init() will automatically call
+        // fetchShoppingList() to refresh the UI.
+    }
 }

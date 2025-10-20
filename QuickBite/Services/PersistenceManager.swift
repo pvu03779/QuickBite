@@ -35,7 +35,7 @@ class PersistenceManager {
     }
     
     // MARK: - Favorite Operations
-    /// Add a simple recipe to favorites
+    // Add a simple recipe to favorites
     func addFavorite(recipe: Recipe) {
         // Check if already exists
         if isFavorite(recipeId: recipe.id) {
@@ -54,7 +54,7 @@ class PersistenceManager {
         NotificationCenter.default.post(name: Self.favoritesChangedNotification, object: nil)
     }
     
-    /// Add a full recipe to favorites
+    // Add a full recipe to favorites
     func addFavorite(recipe: RecipeDetail) {
         // Check if already exists
         if isFavorite(recipeId: recipe.id) {
@@ -73,7 +73,7 @@ class PersistenceManager {
         NotificationCenter.default.post(name: Self.favoritesChangedNotification, object: nil)
     }
     
-    /// Remove a recipe from favorites
+    // Remove a recipe from favorites
     func removeFavorite(recipeId: Int) {
         let fetchRequest: NSFetchRequest<FavoriteRecipe> = FavoriteRecipe.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "recipeId == %d", recipeId)
@@ -92,7 +92,7 @@ class PersistenceManager {
         }
     }
     
-    /// Check if a recipe is favorited
+    // Check if a recipe is favorited
     func isFavorite(recipeId: Int) -> Bool {
         let fetchRequest: NSFetchRequest<FavoriteRecipe> = FavoriteRecipe.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "recipeId == %d", recipeId)
@@ -106,7 +106,7 @@ class PersistenceManager {
         }
     }
     
-    /// Get all favorite recipe objects (sorted by date added, newest first)
+    // Get all favorite recipe objects (sorted by date added, newest first)
     func fetchAllFavorites() throws -> [FavoriteRecipe] {
         let fetchRequest: NSFetchRequest<FavoriteRecipe> = FavoriteRecipe.fetchRequest()
         fetchRequest.sortDescriptors = [NSSortDescriptor(key: "dateAdded", ascending: false)]
@@ -120,7 +120,7 @@ class PersistenceManager {
         }
     }
     
-    /// Clear all favorites
+    // Clear all favorites
     func clearAllFavorites() {
         let fetchRequest: NSFetchRequest<NSFetchRequestResult> = FavoriteRecipe.fetchRequest()
         let deleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
@@ -149,7 +149,7 @@ class PersistenceManager {
         }
     }
     
-    /// Add a recipe and its ingredients to the shopping list
+    // Add a recipe and its ingredients to the shopping list
     func addRecipeToShoppingList(recipe: RecipeDetail) {
         // Don't add if it already exists
         if isRecipeInShoppingList(recipeId: recipe.id) {
@@ -174,7 +174,7 @@ class PersistenceManager {
         NotificationCenter.default.post(name: Self.shoppingListChangedNotification, object: nil)
     }
     
-    /// Get all shopping list recipe groups
+    // Get all shopping list recipe groups
     func fetchAllShoppingListRecipes() throws -> [ShoppingListRecipe] {
         let fetchRequest: NSFetchRequest<ShoppingListRecipe> = ShoppingListRecipe.fetchRequest()
         // Sort by title
@@ -187,5 +187,14 @@ class PersistenceManager {
             print("Error fetching shopping list: \(error)")
             return []
         }
+    }
+    
+    // Deletes a specific recipe and its ingredients from the shopping list
+    func removeRecipeFromShoppingList(_ recipe: ShoppingListRecipe) {
+        context.delete(recipe) // Cascade delete will handle ingredients
+        saveContext()
+        
+        // Post notification so views can refresh
+        NotificationCenter.default.post(name: Self.shoppingListChangedNotification, object: nil)
     }
 }
