@@ -1,10 +1,3 @@
-//
-//  QuickBiteUITests.swift
-//  QuickBiteUITests
-//
-//  Created by Vu Phong on 19/10/25.
-//
-
 import XCTest
 
 final class QuickBiteUITests: XCTestCase {
