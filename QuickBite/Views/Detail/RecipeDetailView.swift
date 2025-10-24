@@ -1,174 +1,153 @@
 import SwiftUI
 
 struct RecipeDetailView: View {
-    let recipeId: Int
-    @StateObject private var viewModel = RecipeDetailViewModel()
-    @State private var isShowingVideo = false
     
-    private var caloriesString: String {
-        if let calories = viewModel.recipeDetail?.nutrition?.nutrients.first(where: { $0.name == "Calories" }) {
-            // Format to a whole number
-            return String(format: "%.0f kcal", calories.amount)
+    let recipeId: Int
+    @StateObject var viewModel = RecipeDetailViewModel()
+    @State var showVideo = false
+    
+    var caloriesText: String {
+        if let recipe = viewModel.recipeDetail {
+            if let cal = recipe.nutrition?.nutrients.first(where: { $0.name == "Calories" }) {
+                return "\(Int(cal.amount)) kcal"
+            }
         }
         return "N/A"
     }
     
-    // Computed property to build the full shareable string
-    private var shareableContent: String {
-        guard let detail = viewModel.recipeDetail else { return "Check out this recipe!" }
-        
-        var content = "\(detail.title)\n\n"
-        
-        content += "--- INGREDIENTS ---\n"
-        for ingredient in detail.extendedIngredients {
-            content += "• \(ingredient.original)\n"
-        }
-        
-        content += "\n--- STEPS ---\n"
-        for instructionSet in detail.analyzedInstructions {
-            for step in instructionSet.steps {
-                content += "\(step.number). \(step.step)\n"
+    var shareText: String {
+        if let recipe = viewModel.recipeDetail {
+            var txt = "\(recipe.title)\n\nIngredients:\n"
+            for ing in recipe.extendedIngredients {
+                txt += "- \(ing.original)\n"
             }
+            txt += "\nSteps:\n"
+            for stepGroup in recipe.analyzedInstructions {
+                for step in stepGroup.steps {
+                    txt += "\(step.number). \(step.step)\n"
+                }
+            }
+            return txt
         }
-        
-        return content
+        return "Check out this recipe!"
     }
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading) {
+                
                 if viewModel.isLoading {
-                    ProgressView("Loading Recipe...")
-                        .frame(height: 300)
-                } else if let detail = viewModel.recipeDetail {
-                    HeaderMediaView(videoInfo: viewModel.videoInfo, imageUrl: detail.image)
-                        .onTapGesture {
-                            if viewModel.videoInfo != nil {
-                                isShowingVideo = true
-                            }
-                        }
+                    ProgressView("Loading recipe...")
+                        .frame(maxWidth: .infinity, minHeight: 250)
+                } else if let recipe = viewModel.recipeDetail {
                     
-                    VStack(alignment: .leading, spacing: 16) {
-                        // Title
-                        Text(detail.title)
-                            .font(.largeTitle)
+                    // Header image or video
+                    if let _ = viewModel.videoInfo {
+                        ZStack {
+                            AsyncImage(url: URL(string: recipe.image)) { img in
+                                img.resizable().scaledToFit()
+                            } placeholder: {
+                                Rectangle().fill(Color.gray.opacity(0.3))
+                            }
+                            Rectangle().fill(Color.black.opacity(0.4))
+                            Image(systemName: "play.circle.fill")
+                                .font(.system(size: 70))
+                                .foregroundColor(.white)
+                        }
+                        .onTapGesture {
+                            showVideo = true
+                        }
+                    } else {
+                        AsyncImage(url: URL(string: recipe.image)) { img in
+                            img.resizable().scaledToFit()
+                        } placeholder: {
+                            Rectangle().fill(Color.gray.opacity(0.3))
+                        }
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(recipe.title)
+                            .font(.title)
                             .fontWeight(.bold)
-                            .font(.subheadline)
-                            .foregroundColor(.primary)
+                            .padding(.top, 10)
                         
                         Divider()
                         
-                        // Ingredients Section
-                        Text("Ingredients (for \(detail.servings) servings)")
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                        ForEach(detail.extendedIngredients) { ingredient in
-                            Text("• \(ingredient.original)")
+                        Text("Ingredients (\(recipe.servings) servings)")
+                            .font(.headline)
+                        ForEach(recipe.extendedIngredients) { item in
+                            Text("• \(item.original)")
                         }
                         
                         Divider()
                         
-                        // Steps Section
                         Text("Steps")
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                        ForEach(detail.analyzedInstructions) { instructionSet in
-                            ForEach(instructionSet.steps) { step in
-                                HStack(alignment: .top) {
-                                    Text("\(step.number).")
-                                        .fontWeight(.bold)
-                                        .padding(.trailing, 4)
-                                    Text(step.step)
-                                }
-                                .padding(.bottom, 4)
+                            .font(.headline)
+                        ForEach(recipe.analyzedInstructions) { instruction in
+                            ForEach(instruction.steps) { step in
+                                Text("\(step.number). \(step.step)")
+                                    .padding(.bottom, 4)
                             }
                         }
                     }
-                    .padding(.horizontal)
+                    .padding()
                     
-                } else if let errorMessage = viewModel.errorMessage {
-                    Text(errorMessage)
+                } else if let error = viewModel.errorMessage {
+                    Text(error)
                         .foregroundColor(.red)
                         .padding()
                 }
             }
         }
         .task {
-            await viewModel.fetchDetails(for: recipeId)
+            await viewModel.loadRecipeDetails(recipeId:recipeId)
         }
-        .navigationTitle("Recipe")
+        .navigationTitle("Recipe Details")
         .navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom) {
-            if let detail = viewModel.recipeDetail {
-                
-                VStack(spacing: 12) {
+            if let recipe = viewModel.recipeDetail {
+                VStack(spacing: 8) {
                     HStack {
-                        Label("\(detail.readyInMinutes) min", systemImage: "clock")
+                        Label("\(recipe.readyInMinutes) min", systemImage: "clock")
                         Spacer()
-                        Label(caloriesString, systemImage: "flame")
+                        Label(caloriesText, systemImage: "flame")
                     }
-                    .font(.headline)
+                    .font(.subheadline)
                     .padding(.horizontal)
                     
-                    Button(action: {
-                        PersistenceManager.shared.addRecipeToShoppingList(recipe: detail)
+                    Button {
+                        PersistenceManager.shared.addToShoppingList(recipe: recipe)
                         viewModel.isInShoppingList = true
-                    }) {
-                        Text(viewModel.isInShoppingList ? "Added to List" : "Add to Shopping")
+                    } label: {
+                        Text(viewModel.isInShoppingList ? "Added!" : "Add to Shopping List")
                             .font(.headline)
                             .foregroundColor(.white)
                             .padding()
                             .frame(maxWidth: .infinity)
                             .background(viewModel.isInShoppingList ? Color.gray : Color.blue)
-                            .cornerRadius(10)
+                            .cornerRadius(8)
                     }
                     .disabled(viewModel.isInShoppingList)
                 }
                 .padding()
-                .background(.thinMaterial)
+                .background(Color(.systemGray6))
             }
         }
-        .sheet(isPresented: $isShowingVideo) {
+        .sheet(isPresented: $showVideo) {
             if let video = viewModel.videoInfo {
                 VideoPlayerView(youTubeId: video.youTubeId)
+            } else {
+                Text("No video available")
             }
         }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 if viewModel.recipeDetail != nil {
-                    ShareLink(
-                        item: shareableContent,
-                        subject: Text("Recipe: \(viewModel.recipeDetail?.title ?? "")")
-                    ) {
+                    ShareLink(item: shareText) {
                         Image(systemName: "square.and.arrow.up")
-                            .foregroundColor(.blue)
                     }
                 }
             }
         }
     }
 }
-
-struct HeaderMediaView: View {
-    let videoInfo: VideoInfo?
-    let imageUrl: String
-    
-    var body: some View {
-        ZStack {
-            AsyncImage(url: URL(string: imageUrl)) { image in
-                image.resizable().scaledToFit()
-            } placeholder: {
-                Rectangle().fill(Color.gray.opacity(0.3)).aspectRatio(contentMode: .fit)
-            }
-            
-            if videoInfo != nil {
-                Rectangle().fill(.black.opacity(0.4))
-                Image(systemName: "play.circle.fill")
-                    .font(.system(size: 80))
-                    .foregroundColor(.white)
-                    .opacity(0.8)
-            }
-        }
-    }
-}
-

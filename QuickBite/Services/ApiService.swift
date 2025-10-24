@@ -1,113 +1,95 @@
 import Foundation
 
 enum ApiError: Error {
-    case badURL
-    case requestFailed(Error)
-    case decodingFailed(Error)
+    case invalidURL
+    case network(Error)
+    case decoding(Error)
 }
 
-class ApiService {
-    private let apiKey = "api_key"
+final class ApiService {
+    private let apiKey = "5e0356f3b7bd454886811a57765cecf9"
     private let baseURL = "https://api.spoonacular.com"
     
-    private let jsonDecoder: JSONDecoder = {
-        let decoder = JSONDecoder()
-        return decoder
-    }()
+    private let decoder = JSONDecoder()
     
-    private func performRequest<T: Decodable>(
+    // MARK: - Core Request
+    
+    private func request<T: Decodable>(
         endpoint: String,
-        queryItems: [URLQueryItem] = []
+        params: [URLQueryItem] = []
     ) async throws -> T {
-        
-        // Build the URL
         guard var components = URLComponents(string: baseURL + endpoint) else {
-            throw ApiError.badURL
+            throw ApiError.invalidURL
         }
         
-        // Add all provided query items + the API key
-        var allQueryItems = queryItems
-        allQueryItems.append(URLQueryItem(name: "apiKey", value: apiKey))
-        components.queryItems = allQueryItems
+        var items = params
+        items.append(.init(name: "apiKey", value: apiKey))
+        components.queryItems = items
         
         guard let url = components.url else {
-            throw ApiError.badURL
+            throw ApiError.invalidURL
         }
         
-        // Perform the network request
-        let data: Data
         do {
-            (data, _) = try await URLSession.shared.data(from: url)
+            let (data, _) = try await URLSession.shared.data(from: url)
+            return try decoder.decode(T.self, from: data)
+        } catch let error as DecodingError {
+            throw ApiError.decoding(error)
         } catch {
-            throw ApiError.requestFailed(error)
-        }
-        
-        // Decode the data
-        do {
-            let decodedResponse = try jsonDecoder.decode(T.self, from: data)
-            return decodedResponse
-        } catch {
-            throw ApiError.decodingFailed(error)
+            throw ApiError.network(error)
         }
     }
     
-    func fetchRecipes(by ids: [Int]) async throws -> [RecipeDetail] {
+    // MARK: - Public Methods
+    
+    func loadRecipes(for ids: [Int]) async throws -> [RecipeDetail] {
         guard !ids.isEmpty else { return [] }
+        let idString = ids.map(String.init).joined(separator: ",")
+        let params = [URLQueryItem(name: "ids", value: idString)]
         
-        let idString = ids.map { String($0) }.joined(separator: ",")
-        let queryItems = [
-            URLQueryItem(name: "ids", value: idString)
-        ]
-
-        // Just call the reusable function
-        return try await performRequest(
+        return try await request(
             endpoint: "/recipes/informationBulk",
-            queryItems: queryItems
+            params: params
         )
     }
     
-    func fetchRecipes(query: String? = nil, cuisine: String? = nil) async throws -> [Recipe] {
-        var queryItems = [
-            URLQueryItem(name: "number", value: "15"),
-            URLQueryItem(name: "addRecipeInformation", value: "true")
+    func searchRecipes(query: String? = nil, cuisine: String? = nil) async throws -> [Recipe] {
+        var params: [URLQueryItem] = [
+            .init(name: "number", value: "15"),
+            .init(name: "addRecipeInformation", value: "true")
         ]
         
-        if let query = query, !query.isEmpty {
-            queryItems.append(URLQueryItem(name: "query", value: query))
-        } else if let cuisine = cuisine {
-            queryItems.append(URLQueryItem(name: "cuisine", value: cuisine))
+        if let q = query, !q.isEmpty {
+            params.append(.init(name: "query", value: q))
+        } else if let c = cuisine {
+            params.append(.init(name: "cuisine", value: c))
         }
         
-        // The generic function decodes the wrapper, and we return the results
-        let decodedResponse: ApiResponse = try await performRequest(
+        let response: ApiResponse = try await request(
             endpoint: "/recipes/complexSearch",
-            queryItems: queryItems
+            params: params
         )
-        return decodedResponse.results
+        return response.results
     }
     
-    func fetchRecipeDetails(id: Int) async throws -> RecipeDetail {
-        let queryItems = [
-            URLQueryItem(name: "includeNutrition", value: "true")
-        ]
-        
-        return try await performRequest(
+    func getRecipeDetails(id: Int) async throws -> RecipeDetail {
+        let params = [URLQueryItem(name: "includeNutrition", value: "true")]
+        return try await request(
             endpoint: "/recipes/\(id)/information",
-            queryItems: queryItems
+            params: params
         )
     }
     
-    func fetchVideo(for query: String) async throws -> VideoInfo? {
-        let queryItems = [
-            URLQueryItem(name: "query", value: query),
-            URLQueryItem(name: "number", value: "1")
+    func getVideo(query: String) async throws -> VideoInfo? {
+        let params: [URLQueryItem] = [
+            .init(name: "query", value: query),
+            .init(name: "number", value: "1")
         ]
         
-        // The generic function decodes the wrapper, and we return the first video
-        let decodedResponse: VideoSearchResponse = try await performRequest(
+        let response: VideoSearchResponse = try await request(
             endpoint: "/food/videos/search",
-            queryItems: queryItems
+            params: params
         )
-        return decodedResponse.videos.first
+        return response.videos.first
     }
 }

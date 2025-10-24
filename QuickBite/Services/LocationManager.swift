@@ -3,53 +3,51 @@ import CoreLocation
 import Combine
 
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
-    private let locationManager = CLLocationManager()
     
-    @Published var location: CLLocation?
-    @Published var authorizationStatus: CLAuthorizationStatus
+    let locationManager = CLLocationManager()
+    
+    @Published var userLocation: CLLocation?
+    @Published var permissionStatus: CLAuthorizationStatus = .notDetermined
     
     override init() {
-        self.authorizationStatus = locationManager.authorizationStatus
         super.init()
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
-        requestPermission()
+        permissionStatus = locationManager.authorizationStatus
+        askForPermission()
     }
     
-    func requestPermission() {
-        if authorizationStatus == .notDetermined {
-            // This will now trigger on app launch
+    func askForPermission() {
+        if permissionStatus == .notDetermined {
             locationManager.requestWhenInUseAuthorization()
-        } else {
+        } else if permissionStatus == .authorizedWhenInUse || permissionStatus == .authorizedAlways {
             locationManager.startUpdatingLocation()
+        } else {
+            print("Location permission not granted.")
         }
     }
     
-    // Delegate method for authorization changes
+    // This runs when the permission changes
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        DispatchQueue.main.async {
-            self.authorizationStatus = manager.authorizationStatus
-            if self.authorizationStatus == .authorizedWhenInUse || self.authorizationStatus == .authorizedAlways {
-                manager.startUpdatingLocation()
-            } else {
-                manager.stopUpdatingLocation()
-                self.location = nil
-            }
+        permissionStatus = manager.authorizationStatus
+        
+        if permissionStatus == .authorizedWhenInUse || permissionStatus == .authorizedAlways {
+            manager.startUpdatingLocation()
+        } else {
+            manager.stopUpdatingLocation()
+            userLocation = nil
         }
     }
     
-    // Delegate method for location updates
+    // Gets called when location updates
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        if let location = locations.first {
-            DispatchQueue.main.async {
-                self.location = location
-                // We have the location, stop updating to save battery
-                manager.stopUpdatingLocation()
-            }
+        if let newLocation = locations.first {
+            userLocation = newLocation
+            // stop updating after getting one location to save battery
+            manager.stopUpdatingLocation()
         }
     }
     
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        print("Location manager failed with error: \(error.localizedDescription)")
     }
 }

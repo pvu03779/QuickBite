@@ -1,5 +1,3 @@
-import Foundation
-
 struct Nutrient: Decodable, Identifiable {
     var id: String { name }
     let name: String

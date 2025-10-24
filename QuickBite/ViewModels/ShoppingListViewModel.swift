@@ -10,44 +10,39 @@ class ShoppingListViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     
     init() {
-        // Fetch initially
-        fetchShoppingList()
-        
-        // Listen for changes (e.g., from the Detail screen)
-        NotificationCenter.default.publisher(for: PersistenceManager.shoppingListChangedNotification)
+        getShoppingList()
+        NotificationCenter.default.publisher(for: PersistenceManager.shoppingListChanged)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                self?.fetchShoppingList()
+                self?.getShoppingList()
             }
             .store(in: &cancellables)
     }
     
-    /// Fetches all recipe groups from Core Data
-    func fetchShoppingList() {
+    // get all recipe groups from Core Data
+    func getShoppingList() {
         do {
-            shoppingListRecipes = try persistence.fetchAllShoppingListRecipes()
+            shoppingListRecipes = try persistence.getAllShoppingListRecipes()
         } catch {
-            print("Error fetching shopping list: \(error.localizedDescription)")
+            print("Error: \(error.localizedDescription)")
         }
     }
     
-    /// Toggles the 'isChecked' state of an ingredient and saves the context
+    // Toggles state of an ingredient and saves the data
     func toggleChecked(for ingredient: ShoppingListIngredient) {
         ingredient.isChecked.toggle()
-        persistence.saveContext()
+        persistence.saveData()
     }
     
-    /// Helper to get a sorted array of ingredients from the recipe's NSSet
+    // sorted array of ingredients from recipe
     func getIngredients(for recipe: ShoppingListRecipe) -> [ShoppingListIngredient] {
         let set = recipe.ingredients as? Set<ShoppingListIngredient> ?? []
         // Sort alphabetically
         return set.sorted { $0.originalText ?? "" < $1.originalText ?? "" }
     }
     
-    /// Calls persistence to delete a recipe from the shopping list
+    // delete a recipe from the shopping list
     func deleteRecipe(_ recipe: ShoppingListRecipe) {
-        persistence.removeRecipeFromShoppingList(recipe)
-        // The notification listener in init() will automatically call
-        // fetchShoppingList() to refresh the UI.
+        persistence.removeFromShoppingList(recipe: recipe)
     }
 }

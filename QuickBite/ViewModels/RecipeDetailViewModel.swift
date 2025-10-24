@@ -1,35 +1,43 @@
 import Foundation
 
-@MainActor
 class RecipeDetailViewModel: ObservableObject {
-    @Published var recipeDetail: RecipeDetail?
-    @Published var videoInfo: VideoInfo?
-    @Published var isLoading = false
-    @Published var errorMessage: String?
+    
+    @Published var recipeDetail: RecipeDetail? = nil
+    @Published var videoInfo: VideoInfo? = nil
+    @Published var isLoading: Bool = false
+    @Published var errorMessage: String? = nil
     @Published var isInShoppingList: Bool = false
     
-    private let service = ApiService()
-    private let persistence = PersistenceManager.shared
+    let apiService = ApiService()
+    let persistenceManager = PersistenceManager.shared
     
-    func fetchDetails(for recipeId: Int) async {
+    // load details for a recipe
+    func loadRecipeDetails(recipeId: Int) async {
         isLoading = true
         errorMessage = nil
         videoInfo = nil
         
-        if recipeDetail?.id == recipeId {
-            isLoading = false;
+        // check if we already have data
+        if let existing = recipeDetail, existing.id == recipeId {
+            print("Already loaded recipe details.")
+            isLoading = false
             return
         }
         
         do {
-            // 1. Fetch the main recipe details
-            let detail = try await service.fetchRecipeDetails(id: recipeId)
+            print("Get recipe details")
+            let detail = try await apiService.getRecipeDetails(id: recipeId)
             self.recipeDetail = detail
-            // 2. Use the recipe title to search for a related video
-            self.videoInfo = try await service.fetchVideo(for: detail.title)
-            self.isInShoppingList = persistence.isRecipeInShoppingList(recipeId: recipeId)
+            
+            print("Get video")
+            let video = try await apiService.getVideo(query: detail.title)
+            self.videoInfo = video
+            
+            self.isInShoppingList = persistenceManager.isInShoppingList(recipeId: recipeId)
+            print("Recipe loaded success")
+            
         } catch {
-            errorMessage = "Failed to fetch recipe details or video: \(error.localizedDescription)"
+            self.errorMessage = "Err: \(error.localizedDescription)"
         }
         
         isLoading = false

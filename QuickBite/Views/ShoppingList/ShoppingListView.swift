@@ -15,7 +15,6 @@ struct ShoppingListView: View {
                 } else {
                     List {
                         ForEach(viewModel.shoppingListRecipes) { recipe in
-                            // --- REVISED: Section header now has a delete button ---
                             Section(header:
                                         HStack {
                                 Text(recipe.recipeTitle ?? "Unknown Recipe")
@@ -45,7 +44,7 @@ struct ShoppingListView: View {
             }
             .navigationTitle("Shopping List")
             .onAppear {
-                viewModel.fetchShoppingList()
+                viewModel.getShoppingList()
             }
         }
     }
@@ -58,12 +57,9 @@ struct ShoppingItemView: View {
     var body: some View {
         Button(action: onToggle) {
             HStack(spacing: 16) {
-                // Checkbox
                 Image(systemName: ingredient.isChecked ? "checkmark.square.fill" : "square")
                     .font(.title2)
                     .foregroundColor(ingredient.isChecked ? .green : .secondary)
-                
-                // Ingredient Text
                 Text(ingredient.originalText ?? "Unknown Ingredient")
                     .font(.body)
                     .foregroundColor(ingredient.isChecked ? .secondary : .primary)

@@ -2,7 +2,6 @@ struct Recipe: Identifiable, Decodable {
     let id: Int
     let title: String
     let image: String
-    // Using optional for fields that might not always be present
     let readyInMinutes: Int?
     let healthScore: Int?
 
