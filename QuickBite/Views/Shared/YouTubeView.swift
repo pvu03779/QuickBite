@@ -11,7 +11,7 @@ struct YouTubeView: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: WKWebView, context: Context) {
-        guard let url = URL(string: "https://www.youtube.com/embed/\(youTubeId)") else { return }
+        guard let url = URL(string: "https://www.youtube.com/watch?v=\(youTubeId)") else { return }
         uiView.load(URLRequest(url: url))
     }
 }

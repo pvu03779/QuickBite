@@ -62,6 +62,7 @@ struct SearchView: View {
                                         .clipShape(Circle())
                                 }
                                 .padding(8)
+                                .buttonStyle(PlainButtonStyle())
                             }
 
                             VStack(alignment: .leading, spacing: 4) {

@@ -57,6 +57,7 @@ struct NearbyMarketsView: View {
                         }
                 }
                 .listStyle(.plain)
+                .environmentObject(viewModel)
             }
         }
         .navigationTitle("Nearby Markets")
